@@ -1,0 +1,75 @@
+{
+  "static": {
+    "systemPromptJoke": "You are not a chatbot but a generator for jokes. You output nothing but the joke based on the request.",
+    "systemPromptTopBottomText": "You are not a chat bot, but a generator for the top and bottom overlay text for a meme. You generate a fitting text based on a prompt that was used to generate the meme image. You can never output anything else other than a valid json containing the generated text without special characters, based on this template: {\"text_top\": \"\", \"text_bottom\":\"\"}"
+  },
+  "dynamic": {
+    "keyword": [
+      {"weight": 1, "value": "electronics"},
+      {"weight": 1, "value": "radiation"},
+      {"weight": 1, "value": "plutonium"},
+      {"weight": 1, "value": "multimeter"},
+      {"weight": 1, "value": "power supply"},
+      {"weight": 1, "value": "integrated circuit"},
+      {"weight": 1, "value": "machining"},
+      {"weight": 1, "value": "circuit board"},
+      {"weight": 1, "value": "laser"},
+      {"weight": 1, "value": "metrology"},
+      {"weight": 1, "value": "fly swatter"},
+      {"weight": 1, "value": "high voltage"},
+      {"weight": 1, "value": "PCB"},
+      {"weight": 1, "value": "capacitor"},
+      {"weight": 1, "value": "diode"},
+      {"weight": 1, "value": "inductor"},
+      {"weight": 1, "value": "transformer electrical"},
+      {"weight": 1, "value": "soldering iron"},
+      {"weight": 1, "value": "cnc milling"},
+      {"weight": 1, "value": "3d printing"},
+      {"weight": 1, "value": "servo motor"},
+      {"weight": 1, "value": "LTZ1000 voltage reference"},
+      {"weight": 1, "value": "portable power station"},
+      {"weight": 1, "value": "youtube"},
+      {"weight": 1, "value": "RF electronics"},
+      {"weight": 1, "value": "microcontroller"},
+      {"weight": 1, "value": "thermal camera"},
+      {"weight": 1, "value": "thermal camera"},
+      {"weight": 1, "value": "microscopy"},
+      {"weight": 1, "value": "oscilloscope"}
+    ],
+    "person": [
+      {"weight": 1, "value": "Reps"},
+      {"weight": 1, "value": "Einball"},
+      {"weight": 1, "value": "Giga"},
+      {"weight": 1, "value": "Phil"},
+      {"weight": 1, "value": "Cat"},
+      {"weight": 1, "value": "Jaromir"},
+      {"weight": 1, "value": "NNNI"},
+      {"weight": 1, "value": "Mark"},
+      {"weight": 1, "value": "Jaymz"}
+    ],
+    "adjective": [
+      {"weight": 1, "value": "weird"},
+      {"weight": 1, "value": "absurd"},
+      {"weight": 1, "value": "unfunny"}
+    ]
+  },
+  "outcomes": [
+    {
+      "weight": 1,
+      "type": "joke",
+      "systemPromptTemplate": "{{ static.systemPromptJoke }}.",
+      "promptTemplate": "Generate a joke about the topic of \"{{ dynamic.keyword }}\" involving someone named \"{{ dynamic.person }}\".{% if (range(2) | random) == 1 %} Make the joke {{ dynamic.adjective }} {% endif %}"
+    },
+    {
+      "weight": 1,
+      "type": "image",
+      "promptTemplate": "Generate an image of the topic of \"{{ dynamic.keyword }}\".{% if (range(2) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
+    },
+    {
+      "weight": 1,
+      "type": "meme",
+      "systemPromptTemplate": "{{ static.systemPromptTopBottomText }}.",
+      "promptTemplate": "Generate a meme image about the topic of \"{{ dynamic.keyword }}\".{% if (range(2) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
+    }
+  ]
+}
