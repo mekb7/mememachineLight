@@ -224,8 +224,8 @@ def outcome_handler(outcome):
         case "meme":
             im = get_image_for_prompt(outcome["promptRendered"])
             meme_json = get_meme_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
-            add_meme_text(im, meme_json['text_top'], meme_json['text_bottom'])
-            print_image(im)
+            im_text = add_meme_text(im, meme_json['text_top'], meme_json['text_bottom'])
+            print_image(im_text)
             return
         case _:
             print("Outcome type %s not recognized" % outcome.type)
@@ -246,6 +246,7 @@ def button_lambda_handler():
 # Button Functions
 random_button.when_pressed = button_lambda_handler()
 
+
 class CmdHandler:
     def __init__(self):
         self._run_cmd = True
@@ -265,6 +266,7 @@ class CmdHandler:
             else:
                 print("Unknown Code " + code)
         return
+
 
 if __name__ == '__main__':
     wait_for_internet_connection()
