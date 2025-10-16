@@ -16,7 +16,6 @@ from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
 from escpos.printer import Usb
 from gpiozero import Button
-from gpiozero.pins.pigpio import PiGPIOFactory
 from usb.core import find as finddev
 
 from outcome_interpreter import OutcomeGenerator
@@ -28,15 +27,8 @@ load_dotenv(dotenv_path=env_path)
 openai.organization = os.getenv("OPENAI_ORG")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Pin Factory
-os.system('if pgrep pigpiod; then sudo killall pigpiod; fi')
-time.sleep(1)
-os.system('sudo pigpiod')
-time.sleep(1)
-pigpio_factory = PiGPIOFactory()
-
 # Button
-random_button = Button(4, bounce_time=0.1, pin_factory=pigpio_factory)
+random_button = Button(4, bounce_time=0.2)
 
 # POS Printer
 dev = finddev(idVendor=0x04b8, idProduct=0x0202)

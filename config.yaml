@@ -1,0 +1,5 @@
+printer:
+  type: Usb
+  idVendor: 0x04b8
+  idProduct: 0x0202
+  profile: TM-T88V

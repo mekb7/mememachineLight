@@ -11,14 +11,11 @@ EOF
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-sudo apt-get install -y python3 python3-pip
+sudo apt-get install -y python3 python3-pip python3-gpiozero
 
 python3 -m venv venv
 source ./venv/bin/activate
 pip install -r ./requirements.txt
 deactivate
-
-sudo systemctl enable pigpiod
-sudo systemctl start pigpiod
 
 mkdir generated
