@@ -58,8 +58,8 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 # ----------------------
 # Globals
 # ----------------------
-BUFFER_SIZE = 2
-NUM_WORKERS = 2
+BUFFER_SIZE = 5
+NUM_WORKERS = 5
 result_buffer = Queue(maxsize=BUFFER_SIZE)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), organization=os.getenv("OPENAI_ORG"))
 
