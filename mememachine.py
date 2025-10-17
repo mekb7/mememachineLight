@@ -3,6 +3,9 @@ import os
 import shutil
 import textwrap
 import time
+import logging
+import sys
+from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
 from signal import pause
@@ -19,6 +22,31 @@ from openai import OpenAI
 from usb.core import find as finddev
 
 from outcome_interpreter import OutcomeGenerator
+
+log_file = '/mnt/data/logs/mememachine.log'
+
+file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3)
+file_handler.setLevel(logging.INFO)
+
+file_formatter = logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+file_handler.setFormatter(file_formatter)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+
+console_formatter = logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(message)s'
+)
+console_handler.setFormatter(console_formatter)
+
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[file_handler, console_handler]
+)
+
+logger = logging.getLogger(__name__)
 
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -54,7 +82,7 @@ def wait_for_internet_connection():
             response = urlopen('https://google.com', timeout=2)
             return
         except URLError:
-            print("Waiting for internet...")
+            logger.warning("Waiting for internet...")
             pass
 
 
@@ -116,7 +144,6 @@ def print_image(image):
 
 
 def get_image_for_prompt(prompt):
-    print("Returning image for prompt: " + prompt)
     try:
         response = client.images.generate(prompt=prompt,
                                           n=1,
@@ -129,13 +156,12 @@ def get_image_for_prompt(prompt):
                 shutil.copyfileobj(res.raw, file)
             return Image.open(target_url)
         else:
-            print('Image Couldn\'t be retrieved')
+            logger.error('Image Couldn\'t be retrieved')
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 
 def print_for_prompt(prompt):
-    print("Printing image for prompt: " + prompt)
     try:
         response = client.images.generate(prompt=prompt,
                                           n=1,
@@ -149,9 +175,9 @@ def print_for_prompt(prompt):
             printer.image(target_url, impl='graphics')
             printer.cut()
         else:
-            print('Image couldn\'t be retrieved')
+            logger.error('Image couldn\'t be retrieved')
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 
 def get_text_for_prompt(system_prompt, prompt):
@@ -167,15 +193,13 @@ def get_text_for_prompt(system_prompt, prompt):
                                                             {"role": "system", "content": system_prompt},
                                                             {"role": "user", "content": prompt},
                                                         ])
-            print(completion)
             text = completion.choices[0].message.content
         except Exception as e:
-            print(f"Error on attempt {i + 1}: {e}")
+            logger.error(f"Error on attempt {i + 1}: {e}")
             text = "Error"
             continue
         else:
             break
-    print(text)
     return text
 
 
@@ -192,15 +216,13 @@ def get_meme_text_for_prompt(system_prompt, prompt):
                                                             {"role": "system", "content": system_prompt},
                                                             {"role": "user", "content": prompt},
                                                         ])
-            print(completion)
             text_json = json.loads(completion.choices[0].message.content)
         except Exception as e:
-            print(f"Error on attempt {i + 1}: {e}")
+            logger.error(f"Error on attempt {i + 1}: {e}")
             text_json = {"text_top": "Error", "text_bottom": "Error"}
             continue
         else:
             break
-    print(text_json)
     return text_json
 
 
@@ -208,6 +230,7 @@ def outcome_handler(outcome):
     match outcome["type"]:
         case "joke":
             text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+            logger.info(text)
             print_text(text)
             return
         case "image":
@@ -217,27 +240,29 @@ def outcome_handler(outcome):
         case "meme":
             im = get_image_for_prompt(outcome["promptRendered"])
             meme_json = get_meme_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+            logger.info(meme_json)
             im_text = add_meme_text(im, meme_json['text_top'], meme_json['text_bottom'])
+            logger.info(im_text)
             print_image(im_text)
             return
         case _:
-            print("Outcome type %s not recognized" % outcome["type"])
+            logger.warning("Outcome type %s not recognized" % outcome["type"])
             return
 
 
 def button_press():
     global button_busy
     if button_busy:
-        print("Button press ignored, still busy...")
+        logger.info("Button press ignored, still busy...")
         return
     button_busy = True
 
     def handler():
         global button_busy
         try:
-            print("Button pressed!")
-            outcome = outcome_generator.generate("joke")
-            print("Outcome:", outcome)
+            logger.info("Button pressed!")
+            outcome = outcome_generator.generate()
+            logger.info("Outcome: %s" % outcome)
             outcome_handler(outcome)
         finally:
             button_busy = False
@@ -267,11 +292,11 @@ class CmdHandler:
                 outcome = outcome_generator.generate(code)
                 outcome_handler(outcome)
             else:
-                print("Unknown Code " + code)
+                logger.warning("Unknown Code " + code)
         return
 
 
 if __name__ == '__main__':
     wait_for_internet_connection()
-    print('--- Mememachine ---')
+    logger.info('--- Mememachine ---')
     pause()
