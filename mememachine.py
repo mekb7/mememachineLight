@@ -263,7 +263,7 @@ def prefill_worker():
             time.sleep(0.5)
             continue
 
-        outcome = outcome_generator.generate(type="meme")
+        outcome = outcome_generator.generate()
         result = outcome_handler(outcome)
         if result:
             result_buffer.put(result)
@@ -299,7 +299,7 @@ def button_press():
                 logger.info("Using pre-generated result")
             except Empty:
                 logger.warning("Buffer empty, generating live result")
-                outcome = outcome_generator.generate(type="meme")
+                outcome = outcome_generator.generate()
                 result = outcome_handler(outcome)
 
             logger.info("Outputting " + result["type"])
