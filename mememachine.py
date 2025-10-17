@@ -1,13 +1,14 @@
 import json
+import logging
 import os
 import shutil
+import sys
 import textwrap
 import time
-import logging
-import sys
-from logging.handlers import RotatingFileHandler
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from queue import Queue, Empty
 from signal import pause
 from threading import Thread
 from urllib.error import URLError
@@ -23,6 +24,7 @@ from usb.core import find as finddev
 
 from outcome_interpreter import OutcomeGenerator
 
+# Logger
 log_file = '/mnt/data/logs/mememachine.log'
 
 file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3)
@@ -48,17 +50,20 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# .env
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
+
+# Buffer
+BUFFER_SIZE = 5
+result_buffer = Queue(maxsize=BUFFER_SIZE)
 
 # Globals
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), organization=os.getenv("OPENAI_ORG"))
 
-# Button lock
-button_busy = False
-
 # Button
 random_button = Button(23, bounce_time=0.05)
+button_busy = False
 
 # POS Printer
 dev = finddev(idVendor=0x04b8, idProduct=0x0202)
@@ -83,6 +88,7 @@ def wait_for_internet_connection():
             return
         except URLError:
             logger.warning("Waiting for internet...")
+            time.sleep(1)
             pass
 
 
@@ -90,11 +96,9 @@ def add_meme_text(image, top_text, bottom_text):
     image_width, image_height = image.size
     draw = ImageDraw.Draw(image)
 
-    # Load a starting font
     base_font_path = "resources/arial.ttf"
 
     def get_font_for_text(text, max_width, start_size=80):
-        # Find the largest font size that fits the image width.
         font_size = start_size
         font = ImageFont.truetype(base_font_path, font_size)
         text_width = draw.textlength(text, font=font)
@@ -104,7 +108,7 @@ def add_meme_text(image, top_text, bottom_text):
             text_width = draw.textlength(text, font=font)
         return font
 
-    # Create fonts that fit the width (90% of image width)
+    # 90% of image width
     font_top = get_font_for_text(top_text, image_width * 0.9)
     font_bottom = get_font_for_text(bottom_text, image_width * 0.9)
 
@@ -226,29 +230,56 @@ def get_meme_text_for_prompt(system_prompt, prompt):
     return text_json
 
 
-def outcome_handler(outcome):
-    match outcome["type"]:
-        case "joke":
-            text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
-            logger.info(text)
-            print_text(text)
-            return
-        case "image":
-            im = get_image_for_prompt(outcome["promptRendered"])
-            print_image(im)
-            return
-        case "meme":
-            im = get_image_for_prompt(outcome["promptRendered"])
-            meme_json = get_meme_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
-            logger.info(meme_json)
-            im_text = add_meme_text(im, meme_json['text_top'], meme_json['text_bottom'])
-            logger.info(im_text)
-            print_image(im_text)
-            return
-        case _:
-            logger.warning("Outcome type %s not recognized" % outcome["type"])
-            return
+def outcome_handler(outcome, return_result=False):
+    if outcome["type"] == "joke":
+        text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+        if return_result:
+            return {"type": "joke", "text": text}
+        print_text(text)
+        return None
+    elif outcome["type"] == "image":
+        img = get_image_for_prompt(outcome["promptRendered"])
+        if return_result:
+            return {"type": "image", "image": img}
+        print_image(img)
+        return None
+    elif outcome["type"] == "meme":
+        img = get_image_for_prompt(outcome["promptRendered"])
+        meme_json = get_meme_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+        img_text = add_meme_text(img, meme_json['text_top'], meme_json['text_bottom'])
+        if return_result:
+            return {"type": "meme", "image": img_text}
+        print_image(img_text)
+        return None
+    else:
+        logger.warning(f"Unknown outcome type {outcome['type']}")
+        return None
 
+def prefill_buffer():
+    while True:
+        if not result_buffer.full():
+            try:
+                # Generate an outcome
+                outcome = outcome_generator.generate()
+
+                # Pre-generate the OpenAI data depending on type
+                if outcome["type"] == "joke":
+                    text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+                    result_buffer.put({"type": "joke", "text": text})
+                elif outcome["type"] == "image":
+                    img = get_image_for_prompt(outcome["promptRendered"])
+                    result_buffer.put({"type": "image", "image": img})
+                elif outcome["type"] == "meme":
+                    img = get_image_for_prompt(outcome["promptRendered"])
+                    meme_json = get_meme_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
+                    img_text = add_meme_text(img, meme_json['text_top'], meme_json['text_bottom'])
+                    result_buffer.put({"type": "meme", "image": img_text})
+                else:
+                    logger.warning(f"Unknown outcome type {outcome['type']}")
+            except Exception as e:
+                logger.error(f"Error generating prefill result: {e}")
+        else:
+            time.sleep(0.5)  # Wait a bit if buffer is full
 
 def button_press():
     global button_busy
@@ -261,19 +292,31 @@ def button_press():
         global button_busy
         try:
             logger.info("Button pressed!")
-            outcome = outcome_generator.generate()
-            logger.info("Outcome: %s" % outcome)
-            outcome_handler(outcome)
+            try:
+                # Get a pre-generated result
+                result = result_buffer.get_nowait()
+                logger.info("Using pre-generated result")
+            except Empty:
+                logger.warning("Buffer empty, generating live result")
+                outcome = outcome_generator.generate()
+                result = outcome_handler(outcome, return_result=True)
+
+            # Display the result
+            if result["type"] == "joke":
+                print_text(result["text"])
+            elif result["type"] in ["image", "meme"]:
+                print_image(result["image"])
+
         finally:
             button_busy = False
 
-    # Run the actual work in a separate thread
     Thread(target=handler).start()
-
 
 # Button
 random_button.when_pressed = button_press
 
+# Start the prefill thread
+Thread(target=prefill_buffer, daemon=True).start()
 
 class CmdHandler:
     def __init__(self):
