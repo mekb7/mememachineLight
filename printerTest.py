@@ -10,6 +10,6 @@ if dev is None:
 dev.reset()
 time.sleep(2)
 """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88V) """
-printer = Usb(0x04b8, 0x0202)
+printer = Usb(0x04b8, 0x0202, profile="TM-T88V")
 printer.text("TEST")
 printer.cut()

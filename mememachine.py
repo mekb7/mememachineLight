@@ -10,12 +10,12 @@ from threading import Thread
 from urllib.error import URLError
 from urllib.request import urlopen
 
-import openai
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
 from escpos.printer import Usb
 from gpiozero import Button
+from openai import OpenAI
 from usb.core import find as finddev
 
 from outcome_interpreter import OutcomeGenerator
@@ -24,8 +24,7 @@ env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # Globals
-openai.organization = os.getenv("OPENAI_ORG")
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), organization=os.getenv("OPENAI_ORG"))
 
 # Button
 random_button = Button(4, bounce_time=0.2)
@@ -37,7 +36,7 @@ if dev is None:
 dev.reset()
 time.sleep(2)
 """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88V) """
-printer = Usb(0x04b8, 0x0202)
+printer = Usb(0x04b8, 0x0202, profile="TM-T88V")
 
 # Outcome Interpreter
 with open("resources/template.json") as f:
@@ -113,12 +112,10 @@ def print_image(image):
 def get_image_for_prompt(prompt):
     print("Returning image for prompt: " + prompt)
     try:
-        response = openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size="512x512"
-        )
-        image_url = response['data'][0]['url']
+        response = client.images.generate(prompt=prompt,
+                                          n=1,
+                                          size="512x512")
+        image_url = response.data[0].url
         res = requests.get(image_url, stream=True)
         target_url = "generated/image_%s.jpg" % datetime.now().strftime("%Y%m%d_%H%M%S")
         if res.status_code == 200:
@@ -134,12 +131,10 @@ def get_image_for_prompt(prompt):
 def print_for_prompt(prompt):
     print("Printing image for prompt: " + prompt)
     try:
-        response = openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size="512x512"
-        )
-        image_url = response['data'][0]['url']
+        response = client.images.generate(prompt=prompt,
+                                          n=1,
+                                          size="512x512")
+        image_url = response.data[0].url
         res = requests.get(image_url, stream=True)
         target_url = "generated/meme_%s.jpg" % datetime.now().strftime("%Y%m%d_%H%M%S")
         if res.status_code == 200:
@@ -157,20 +152,19 @@ def get_text_for_prompt(system_prompt, prompt):
     text = None
     for i in range(5):
         try:
-            completion = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                temperature=1,
-                max_tokens=60,
-                frequency_penalty=0,
-                presence_penalty=0,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ]
-            )
+            completion = client.chat.completions.create(model="gpt-3.5-turbo",
+                                                        temperature=1,
+                                                        max_tokens=60,
+                                                        frequency_penalty=0,
+                                                        presence_penalty=0,
+                                                        messages=[
+                                                            {"role": "system", "content": system_prompt},
+                                                            {"role": "user", "content": prompt},
+                                                        ])
             print(completion)
-            text = json.loads(completion.choices[0].message.content)
-        except:
+            text = completion.choices[0].message.content
+        except Exception as e:
+            print(f"Error on attempt {i + 1}: {e}")
             text = "Error"
             continue
         else:
@@ -183,20 +177,19 @@ def get_meme_text_for_prompt(system_prompt, prompt):
     text_json = None
     for i in range(5):
         try:
-            completion = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                temperature=1,
-                max_tokens=60,
-                frequency_penalty=0,
-                presence_penalty=0,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ]
-            )
+            completion = client.chat.completions.create(model="gpt-3.5-turbo",
+                                                        temperature=1,
+                                                        max_tokens=60,
+                                                        frequency_penalty=0,
+                                                        presence_penalty=0,
+                                                        messages=[
+                                                            {"role": "system", "content": system_prompt},
+                                                            {"role": "user", "content": prompt},
+                                                        ])
             print(completion)
             text_json = json.loads(completion.choices[0].message.content)
-        except:
+        except Exception as e:
+            print(f"Error on attempt {i + 1}: {e}")
             text_json = {"text_top": "Error", "text_bottom": "Error"}
             continue
         else:
@@ -207,7 +200,7 @@ def get_meme_text_for_prompt(system_prompt, prompt):
 
 def outcome_handler(outcome):
     match outcome["type"]:
-        case "text":
+        case "joke":
             text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
             print_text(text)
             return
