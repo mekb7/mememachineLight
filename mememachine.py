@@ -58,7 +58,8 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 # ----------------------
 # Globals
 # ----------------------
-BUFFER_SIZE = 5
+BUFFER_SIZE = 2
+NUM_WORKERS = 2
 result_buffer = Queue(maxsize=BUFFER_SIZE)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), organization=os.getenv("OPENAI_ORG"))
 
@@ -129,29 +130,52 @@ def add_meme_text(image, top_text, bottom_text, font_path="resources/arial.ttf")
     draw = ImageDraw.Draw(image)
     image_width, image_height = image.size
 
-    def get_font(text, max_width, start_size=80):
+    def fit_text(text, max_width, target_height_fraction=0.25, start_size=100):
+        # Determine font size so text block height fits roughly in target fraction
         font_size = start_size
-        font = ImageFont.truetype(font_path, font_size)
-        while draw.textlength(text, font=font) > max_width and font_size > 10:
-            font_size -= 2
+        while font_size > 10:
             font = ImageFont.truetype(font_path, font_size)
-        return font
+            # Build wrapped lines based on width
+            words = text.split()
+            lines = []
+            current_line = ""
+            for word in words:
+                test_line = (current_line + " " + word).strip()
+                if draw.textlength(test_line, font=font) <= max_width:
+                    current_line = test_line
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            if current_line:
+                lines.append(current_line)
 
-    def draw_centered(text, y, font):
-        for line in textwrap.wrap(text, width=40):
+            # Compute block height
+            total_height = sum(font.getbbox(line)[3] for line in lines)
+            if total_height <= image_height * target_height_fraction:
+                return font, lines
+            font_size -= 2
+        return font, lines
+
+    def draw_centered(lines, y, font):
+        for line in lines:
             line_width = draw.textlength(line, font=font)
             line_height = font.getbbox(line)[3]
             x = (image_width - line_width) / 2
-            draw.text((x, y), line, font=font, fill="white", stroke_width=2, stroke_fill="black")
+            draw.text((x, y), line, font=font, fill="white", stroke_width=3, stroke_fill="black")
             y += line_height
         return y
 
-    draw_centered(top_text, int(image_height * 0.05), get_font(top_text, image_width * 0.9))
-    bottom_lines = textwrap.wrap(bottom_text, width=40)
-    total_height = len(bottom_lines) * get_font(bottom_text, image_width * 0.9).getbbox(bottom_text)[3]
-    draw_centered(bottom_text, image_height - total_height - int(image_height * 0.05),
-                  get_font(bottom_text, image_width * 0.9))
+    # Top text: allow up to 25% height
+    top_font, top_lines = fit_text(top_text, image_width * 0.9, target_height_fraction=0.25)
+    draw_centered(top_lines, int(image_height * 0.05), top_font)
+
+    # Bottom text: allow up to 30% height (often longer)
+    bottom_font, bottom_lines = fit_text(bottom_text, image_width * 0.9, target_height_fraction=0.3)
+    total_height = sum(bottom_font.getbbox(line)[3] for line in bottom_lines)
+    draw_centered(bottom_lines, image_height - total_height - int(image_height * 0.05), bottom_font)
+
     return image
+
 
 
 # ----------------------
@@ -219,7 +243,7 @@ def outcome_handler(outcome):
 
     def meme_handler(outcome):
         meme_json = get_meme_json(outcome["promptRendered"], outcome["systemPromptRendered"])
-        img = generate_image("Generate a meme image based on this top and bottom meme text: " + json.dumps(meme_json))
+        img = generate_image("Generate a funny image based on this top and bottom meme text: " + json.dumps(meme_json)) # It should not have text in the image
         return {"type": "meme", "image": add_meme_text(img, meme_json["text_top"], meme_json["text_bottom"])}
 
     result = type_handlers.get(outcome["type"], lambda: None)()
@@ -247,7 +271,6 @@ def prefill_worker():
 
 
 # Start multiple prefill workers to speed up buffer filling
-NUM_WORKERS = 5  # You can increase if needed
 executor = ThreadPoolExecutor(max_workers=NUM_WORKERS)
 for _ in range(NUM_WORKERS):
     executor.submit(prefill_worker)
