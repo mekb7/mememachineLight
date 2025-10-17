@@ -314,16 +314,16 @@ def button_press():
                 logger.info(f"Buffer now at {result_buffer.qsize()}")
                 logger.info("Using pre-generated result")
             except Empty:
-                logger.warning("Buffer empty, generating live result")
-                outcome = outcome_generator.generate()
-                result = outcome_handler(outcome)
+                logger.warning("Buffer empty — waiting for next available result...")
+                result = result_buffer.get()
+                logger.info("Received new result from worker")
 
             logger.info("Outputting " + result["type"])
 
             if result["type"] == "joke":
-                print_text(result["text"])  # Text
+                print_text(result["text"])
             else:
-                print_image(result["image"])  # Image and Meme both have an image
+                print_image(result["image"])
         finally:
             button_busy = False
 
