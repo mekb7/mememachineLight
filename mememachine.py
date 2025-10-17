@@ -32,6 +32,8 @@ random_button = Button(4, bounce_time=0.2)
 
 # POS Printer
 dev = finddev(idVendor=0x04b8, idProduct=0x0202)
+if dev is None:
+    raise ValueError('Printer not found')
 dev.reset()
 time.sleep(2)
 """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88V) """
@@ -204,7 +206,7 @@ def get_meme_text_for_prompt(system_prompt, prompt):
 
 
 def outcome_handler(outcome):
-    match outcome.type:
+    match outcome["type"]:
         case "text":
             text = get_text_for_prompt(outcome["systemPromptRendered"], outcome["promptRendered"])
             print_text(text)
@@ -220,13 +222,14 @@ def outcome_handler(outcome):
             print_image(im_text)
             return
         case _:
-            print("Outcome type %s not recognized" % outcome.type)
+            print("Outcome type %s not recognized" % outcome["type"])
             return
 
 
 def button_press():
     print('Button pressed!')
     outcome = outcome_generator.generate()
+    print('Outcome: %s' % outcome)
     outcome_handler(outcome)
     return True
 
@@ -263,4 +266,5 @@ class CmdHandler:
 if __name__ == '__main__':
     wait_for_internet_connection()
     print('--- Mememachine ---')
+    button_press()
     pause()

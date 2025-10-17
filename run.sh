@@ -1,4 +1,5 @@
 #!/bin/bash -x
+set -e
 
 PWD=`pwd`
 echo $PWD
