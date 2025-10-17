@@ -5,6 +5,7 @@ import shutil
 import sys
 import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -217,8 +218,8 @@ def outcome_handler(outcome):
     }
 
     def meme_handler(outcome):
-        img = generate_image(outcome["promptRendered"])
         meme_json = get_meme_json(outcome["promptRendered"], outcome["systemPromptRendered"])
+        img = generate_image("Generate a meme image based on this top and bottom meme text: " + json.dumps(meme_json))
         return {"type": "meme", "image": add_meme_text(img, meme_json["text_top"], meme_json["text_bottom"])}
 
     result = type_handlers.get(outcome["type"], lambda: None)()
@@ -230,22 +231,26 @@ def outcome_handler(outcome):
 
 
 # ----------------------
-# Prefill Buffer Thread
+# Prefill Buffer Thread (Parallelized)
 # ----------------------
-def prefill_buffer():
+def prefill_worker():
     while True:
         if result_buffer.full():
             time.sleep(0.5)
             continue
 
-        outcome = outcome_generator.generate()
+        outcome = outcome_generator.generate(type="meme")
         result = outcome_handler(outcome)
         if result:
             result_buffer.put(result)
             logger.info(f"Buffer now at {result_buffer.qsize()}")
 
 
-Thread(target=prefill_buffer, daemon=True).start()
+# Start multiple prefill workers to speed up buffer filling
+NUM_WORKERS = 5  # You can increase if needed
+executor = ThreadPoolExecutor(max_workers=NUM_WORKERS)
+for _ in range(NUM_WORKERS):
+    executor.submit(prefill_worker)
 
 # ----------------------
 # Button Handling
@@ -271,13 +276,15 @@ def button_press():
                 logger.info("Using pre-generated result")
             except Empty:
                 logger.warning("Buffer empty, generating live result")
-                outcome = outcome_generator.generate()
+                outcome = outcome_generator.generate(type="meme")
                 result = outcome_handler(outcome)
 
+            logger.info("Outputting " + result["type"])
+
             if result["type"] == "joke":
-                print_text(result["text"])
+                print_text(result["text"])  # Text
             else:
-                print_image(result["image"])
+                print_image(result["image"])  # Image and Meme both have an image
         finally:
             button_busy = False
 
