@@ -34,14 +34,20 @@
       {"weight": 1, "value": "thermal camera"},
       {"weight": 1, "value": "thermal camera"},
       {"weight": 1, "value": "microscopy"},
-      {"weight": 1, "value": "oscilloscope"}
+      {"weight": 1, "value": "oscilloscope"},
+      {"weight": 1, "value": "the Physikalisch-Technische Bundesanstalt (PTB)"},
+      {"weight": 1, "value": "bears"},
+      {"weight": 1, "value": "the discord channel 'after-dark'"},
+      {"weight": 1, "value": "volt-nutting"},
+      {"weight": 1, "value": "video sponsors"},
+      {"weight": 1, "value": "psc way"}
     ],
     "person": [
       {"weight": 1, "value": "Reps"},
       {"weight": 1, "value": "Einball"},
       {"weight": 1, "value": "Giga"},
       {"weight": 1, "value": "Phil"},
-      {"weight": 1, "value": "Cat"},
+      {"weight": 1, "value": "Cat87"},
       {"weight": 1, "value": "Jaromir"},
       {"weight": 1, "value": "NNNI"},
       {"weight": 1, "value": "Mark"},
