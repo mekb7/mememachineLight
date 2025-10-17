@@ -113,14 +113,20 @@ def safe_openai_call(call_func, retries=5, default=None):
 def fetch_image(url, save_dir="generated", prefix="image"):
     os.makedirs(save_dir, exist_ok=True)
     target_path = os.path.join(save_dir, f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
-    res = requests.get(url, stream=True)
-    if res.status_code == 200:
+
+    try:
+        res = requests.get(url, timeout=15)  # no stream=True
+        res.raise_for_status()
         with open(target_path, "wb") as f:
-            shutil.copyfileobj(res.raw, f)
-        return Image.open(target_path)
-    else:
-        logger.error(f"Failed to download image from {url}")
+            f.write(res.content)
+
+        img = Image.open(target_path)
+        img.load()  # fully read the image into memory
+        return img
+    except Exception as e:
+        logger.error(f"Failed to fetch image: {e}")
         return None
+
 
 
 # ----------------------
