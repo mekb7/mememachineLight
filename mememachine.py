@@ -233,8 +233,16 @@ def print_text(text):
 
 
 def print_image(image):
-    printer.image(image, impl="graphics")
-    printer.cut()
+    if image is None:
+        logger.error("print_image called with None — skipping print.")
+        return
+
+    try:
+        printer.image(image, impl="graphics")
+        printer.cut()
+    except Exception as e:
+        logger.error(f"Failed to print image: {e}")
+
 
 
 # ----------------------
