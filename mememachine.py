@@ -249,7 +249,7 @@ def outcome_handler(outcome):
 
     def meme_handler(outcome):
         meme_json = get_meme_json(outcome["promptRendered"], outcome["systemPromptRendered"])
-        img = generate_image("Generate a funny image based on this top and bottom meme text: " + json.dumps(meme_json)) # It should not have text in the image
+        img = generate_image("Generate a funny image without text or letters in it based on this top and bottom meme text: " + json.dumps(meme_json)) # It should not have text in the image
         return {"type": "meme", "image": add_meme_text(img, meme_json["text_top"], meme_json["text_bottom"])}
 
     result = type_handlers.get(outcome["type"], lambda: None)()

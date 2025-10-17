@@ -64,57 +64,57 @@
   },
   "outcomes": [
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "joke",
       "systemPromptTemplate": "{{ static.systemPromptJoke }}.",
       "promptTemplate": "Generate a one-liner about the topic of \"{{ dynamic.keyword }}\" involving someone named \"{{ dynamic.person }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "joke",
       "systemPromptTemplate": "{{ static.systemPromptJoke }}.",
       "promptTemplate": "Generate a one-liner about the topic of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "joke",
       "systemPromptTemplate": "{{ static.systemPromptJoke }}.",
       "promptTemplate": "Generate a joke about the topic of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make the joke {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "joke",
       "systemPromptTemplate": "{{ static.systemPromptJoke }}.",
       "promptTemplate": "Generate a joke about the topic of \"{{ dynamic.keyword }}\" involving someone named \"{{ dynamic.person }}\".{% if (range(3) | random) == 1 %} Make the joke {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "image",
       "promptTemplate": "Generate an image about the topic of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "image",
       "promptTemplate": "Generate an image of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "image",
       "promptTemplate": "Generate a meme about the topic of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.25,
+      "weight": 1,
       "type": "image",
       "promptTemplate": "Generate a meme of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.5,
+      "weight": 2,
       "type": "meme",
       "systemPromptTemplate": "{{ static.systemPromptTopBottomText }}.",
       "promptTemplate": "Generate a meme about the topic of \"{{ dynamic.keyword }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     },
     {
-      "weight": 0.5,
+      "weight": 2,
       "type": "meme",
       "systemPromptTemplate": "{{ static.systemPromptTopBottomText }}.",
       "promptTemplate": "Generate a meme about the topic of \"{{ dynamic.keyword }}\" involving someone named \"{{ dynamic.person }}\".{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
@@ -123,7 +123,7 @@
       "weight": 1,
       "type": "joke",
       "systemPromptTemplate": "{{ static.systemPromptChallenge }}.",
-      "promptTemplate": "Generate a challenge about the topic of \"{{ dynamic.keyword }}\". It should be easily achievable.{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
+      "promptTemplate": "Generate a challenge about the topic of \"{{ dynamic.keyword }}\". It should be achievable without any effort or going anywhere or doing anything.{% if (range(3) | random) == 1 %} Make it {{ dynamic.adjective }} {% endif %}"
     }
   ]
 }
