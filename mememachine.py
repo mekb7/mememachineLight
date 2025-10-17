@@ -26,8 +26,11 @@ load_dotenv(dotenv_path=env_path)
 # Globals
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), organization=os.getenv("OPENAI_ORG"))
 
+# Button lock
+button_busy = False
+
 # Button
-random_button = Button(4, bounce_time=0.2)
+random_button = Button(23, bounce_time=0.05)
 
 # POS Printer
 dev = finddev(idVendor=0x04b8, idProduct=0x0202)
@@ -56,45 +59,48 @@ def wait_for_internet_connection():
 
 
 def add_meme_text(image, top_text, bottom_text):
-    # Load the image
     image_width, image_height = image.size
-
-    # Determine the font size based on image width
-    font_size_top = max(int(-0.9 * len(top_text) + 50), 25)
-    font_size_bottom = max(int(-0.9 * len(bottom_text) + 50), 25)
-
-    # Create a PIL ImageFont object
-    font_top = ImageFont.truetype("resources/arial.ttf", font_size_top)
-    font_bottom = ImageFont.truetype("resources/arial.ttf", font_size_bottom)
-
-    # Create a PIL ImageDraw object
     draw = ImageDraw.Draw(image)
 
-    # Calculate the maximum width for the text
-    max_width = int(image_width * 0.05)
+    # Load a starting font
+    base_font_path = "resources/arial.ttf"
 
-    # Add top text
+    def get_font_for_text(text, max_width, start_size=80):
+        # Find the largest font size that fits the image width.
+        font_size = start_size
+        font = ImageFont.truetype(base_font_path, font_size)
+        text_width = draw.textlength(text, font=font)
+        while text_width > max_width and font_size > 10:
+            font_size -= 2
+            font = ImageFont.truetype(base_font_path, font_size)
+            text_width = draw.textlength(text, font=font)
+        return font
+
+    # Create fonts that fit the width (90% of image width)
+    font_top = get_font_for_text(top_text, image_width * 0.9)
+    font_bottom = get_font_for_text(bottom_text, image_width * 0.9)
+
+    def draw_centered_text(text, y, font):
+        lines = textwrap.wrap(text, width=40)
+        for line in lines:
+            line_width = draw.textlength(line, font=font)
+            line_height = font.getbbox(line)[3]
+            x = (image_width - line_width) / 2
+            draw.text((x, y), line, font=font, fill='white',
+                      stroke_width=2, stroke_fill='black')
+            y += line_height
+        return y
+
+    # Top text
     y = int(image_height * 0.05)
-    for line in textwrap.wrap(top_text, width=max_width):
-        draw.text((int(image_width * 0.1), y), line, font=font_top, align='center', fill='white', stroke_width=2,
-                  stroke_fill='black')
-        left, top, right, bottom = font_top.getbbox(line)
-        height_line = bottom - top
-        y += height_line
+    draw_centered_text(top_text, y, font_top)
 
-    # Add bottom text
-    y = int(image_height * 0.95)
-    bottom_lines = textwrap.wrap(bottom_text, width=max_width)
-    left, top, right, bottom = font_top.getbbox(bottom_text)
-    height_bottom_text = bottom - top
-    bottom_offset = (len(bottom_lines) * height_bottom_text)
-    for line in bottom_lines:
-        draw.text((int(image_width * 0.1), y - bottom_offset), line, font=font_bottom, align="center", fill='white',
-                  stroke_width=2,
-                  stroke_fill='black')
-        left, top, right, bottom = font_top.getbbox(line)
-        height_line = bottom - top
-        y += height_line
+    # Bottom text
+    bottom_lines = textwrap.wrap(bottom_text, width=40)
+    line_height = font_bottom.getbbox(bottom_text)[3]
+    total_bottom_height = len(bottom_lines) * line_height
+    y = image_height - total_bottom_height - int(image_height * 0.05)
+    draw_centered_text(bottom_text, y, font_bottom)
 
     return image
 
@@ -220,19 +226,28 @@ def outcome_handler(outcome):
 
 
 def button_press():
-    print('Button pressed!')
-    outcome = outcome_generator.generate()
-    print('Outcome: %s' % outcome)
-    outcome_handler(outcome)
-    return True
+    global button_busy
+    if button_busy:
+        print("Button press ignored, still busy...")
+        return
+    button_busy = True
+
+    def handler():
+        global button_busy
+        try:
+            print("Button pressed!")
+            outcome = outcome_generator.generate("joke")
+            print("Outcome:", outcome)
+            outcome_handler(outcome)
+        finally:
+            button_busy = False
+
+    # Run the actual work in a separate thread
+    Thread(target=handler).start()
 
 
-def button_lambda_handler():
-    return lambda: button_press()
-
-
-# Button Functions
-random_button.when_pressed = button_lambda_handler()
+# Button
+random_button.when_pressed = button_press
 
 
 class CmdHandler:
@@ -259,5 +274,4 @@ class CmdHandler:
 if __name__ == '__main__':
     wait_for_internet_connection()
     print('--- Mememachine ---')
-    button_press()
     pause()
